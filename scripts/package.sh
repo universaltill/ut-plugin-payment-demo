@@ -16,6 +16,8 @@ mkdir -p dist
 
 entries=(manifest.json assets README.md bin)
 [ -f LICENSE ] && entries+=(LICENSE)
-tar -czf "$OUT" "${entries[@]}"
+# COPYFILE_DISABLE stops macOS tar shipping AppleDouble ._* junk (the
+# marketplace bundle-hygiene gate rejects it).
+COPYFILE_DISABLE=1 tar -czf "$OUT" "${entries[@]}"
 if command -v sha256sum >/dev/null 2>&1; then sha256sum "$OUT" > "${OUT}.sha256"; else shasum -a 256 "$OUT" > "${OUT}.sha256"; fi
 echo "packaged $OUT"
