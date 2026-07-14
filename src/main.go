@@ -71,40 +71,40 @@ func main() {
 	}
 
 	amount := ev.Payload.Amount
-	outcome := "approved"
-	switch amount % 100 {
-	case 13:
-		outcome = "declined"
-	case 99:
-		// Simulate a dead terminal: sleep past the till's event deadline so
-		// the handler is killed and audited as a timeout.
-		logf("demo-card: simulating terminal timeout for sale %s", ev.Payload.SaleID)
-		time.Sleep(30 * time.Second)
-		os.Exit(1)
+
+	// payment.demo.authorize — BLOCKING, runs BEFORE the sale completes.
+	// Exit 0 = approved (tender proceeds); non-zero = declined (the till
+	// refuses the sale). The timeout card never answers, so the runtime's
+	// deadline kills us — the dead-reader path.
+	if ev.Type == "payment.demo.authorize" {
+		switch amount % 100 {
+		case 13:
+			logf("demo-card: DECLINED %d minor units", amount)
+			result, _ := json.Marshal(map[string]any{"terminal": "demo", "amount": amount, "outcome": "declined"})
+			_ = store("last_txn", result)
+			os.Exit(2)
+		case 99:
+			logf("demo-card: simulating terminal timeout (%d minor units)", amount)
+			time.Sleep(30 * time.Second)
+			os.Exit(1)
+		}
+		auth := fmt.Sprintf("DEMO-%06d", amount%1000000)
+		result, _ := json.Marshal(map[string]any{"terminal": "demo", "amount": amount, "outcome": "approved", "auth_code": auth})
+		_ = store("last_txn", result)
+		logf("demo-card: APPROVED %d minor units (%s)", amount, auth)
+		_, _ = os.Stdout.Write(append(result, '\n'))
+		return
 	}
 
-	result := map[string]any{
-		"terminal": "demo",
-		"sale_id":  ev.Payload.SaleID,
-		"amount":   amount,
-		"outcome":  outcome,
+	// payment.demo.requested — post-settle: the sale exists now; file the
+	// transaction under its id.
+	result, _ := json.Marshal(map[string]any{
+		"terminal": "demo", "sale_id": ev.Payload.SaleID,
+		"amount": amount, "outcome": "settled",
+	})
+	if code := store("txn:"+ev.Payload.SaleID, result); code != 0 {
+		logf("demo-card: storing settle failed (%d)", code)
 	}
-	if outcome == "approved" {
-		result["auth_code"] = fmt.Sprintf("DEMO-%06d", amount%1000000)
-	}
-	resJSON, _ := json.Marshal(result)
-
-	if code := store("txn:"+ev.Payload.SaleID, resJSON); code != 0 {
-		logf("demo-card: storing result failed (%d)", code)
-	}
-	_ = store("last_txn", resJSON)
-	logf("demo-card: sale %s %d minor units -> %s", ev.Payload.SaleID, amount, outcome)
-
-	// stdout is logged to the audit trail by the runtime.
-	_ = json.NewEncoder(os.Stdout).Encode(result)
-	if outcome == "declined" {
-		// Non-zero exit marks the handler errored → audited as a failure so
-		// the decline is visible in the till's audit trail.
-		os.Exit(2)
-	}
+	logf("demo-card: settled sale %s (%d minor units)", ev.Payload.SaleID, amount)
+	_, _ = os.Stdout.Write(append(result, '\n'))
 }

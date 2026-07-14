@@ -1,8 +1,8 @@
 {
   "id": "com.universaltill.payment-demo",
   "name": "Demo Card Terminal",
-  "version": "1.0.0",
-  "description": "Simulated card terminal with deterministic test outcomes: train staff, run demos and test the full tender path with zero hardware. The pence amount picks the scenario — .13 declines, .99 times out, anything else approves.",
+  "version": "1.1.0",
+  "description": "Simulated card terminal with deterministic test outcomes that really decline: authorization runs BEFORE the sale completes. The pence amount picks the scenario \u2014 .13 declines (sale stops), .99 times out, anything else approves.",
   "author": "Universal Till",
   "website": "https://universaltill.com",
   "canonical_type": "payment",
@@ -29,8 +29,12 @@
   "entrypoint": "./bin/plugin.wasm",
   "hooks": [
     {
-      "event": "payment.demo.requested",
+      "event": "payment.demo.authorize",
       "action": "demo.authorize"
+    },
+    {
+      "event": "payment.demo.requested",
+      "action": "demo.settle"
     }
   ]
 }

@@ -12,7 +12,7 @@ the **pence amount**, the same trick as Stripe's magic test amounts:
 
 | Amount ends | Outcome | What it simulates |
 |---|---|---|
-| `.13` (e.g. £5.13) | **DECLINED** | Issuer declines the card |
+| `.13` (e.g. £5.13) | **DECLINED** | Issuer declines — **the sale does not complete** |
 | `.99` (e.g. £5.99) | **TIMEOUT** | Reader lost connection / never answers |
 | anything else | **APPROVED** | Fake auth code `DEMO-xxxxxx` issued |
 
@@ -24,9 +24,10 @@ them (`storage` permission).
 ## How it runs
 
 `canonical_type: payment` — installing adds a **Demo Card** tender button.
-Settling a sale with it publishes `payment.demo.requested`; the till's
-in-process wazero runtime executes `bin/plugin.wasm` (WASI command, built
-with plain Go `GOOS=wasip1`) with the event JSON on stdin.
+Tender first fires **`payment.demo.authorize` (blocking)** — the module's
+verdict decides whether the sale completes at all; after completion
+`payment.demo.requested` settles the transaction under the sale id. Both
+run in-process (wazero, WASI command, plain Go `GOOS=wasip1`).
 
 ## Develop
 
