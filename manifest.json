@@ -1,7 +1,7 @@
 {
   "id": "com.universaltill.payment-demo",
   "name": "Demo Card Terminal",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Simulated card terminal with deterministic test outcomes that really decline: authorization runs BEFORE the sale completes. The pence amount picks the scenario — .13 declines (sale stops), .99 times out, anything else approves.",
   "author": "Universal Till",
   "website": "https://universaltill.com",
